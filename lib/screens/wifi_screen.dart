@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../services/bluetooth_service.dart';
 import 'dashboard_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class WifiScreen extends StatefulWidget {
   final BluetoothService btService;
+
   const WifiScreen({super.key, required this.btService});
 
   @override
@@ -16,11 +18,13 @@ class _WifiScreenState extends State<WifiScreen> {
   final passController = TextEditingController();
   bool loading = false;
 
+  BluetoothService get btService => widget.btService;
+
   Future<void> _sendCredentials() async {
     setState(() => loading = true);
-    await widget.btService
+    await btService
         .sendWifiCredentials(ssidController.text, passController.text);
-    await widget.btService.disconnect();
+    await btService.disconnect();
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString("esp_ip", "192.168.1.100"); // user can modify later

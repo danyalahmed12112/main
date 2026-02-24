@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
 class BluetoothService {
@@ -20,9 +21,7 @@ class BluetoothService {
       timeout: const Duration(seconds: 5),
     );
 
-    await FlutterBluePlus.isScanning
-        .where((scanning) => scanning == false)
-        .first;
+    await FlutterBluePlus.isScanning.where((scanning) => scanning == false).first;
 
     return FlutterBluePlus.lastScanResults;
   }
@@ -33,8 +32,7 @@ class BluetoothService {
 
     await device.connect(autoConnect: false);
 
-    List<BluetoothService> services =
-        (await device.discoverServices()).cast<BluetoothService>();
+    final services = await device.discoverServices();
 
     for (var service in services) {
       if (service.uuid == serviceUuid) {
@@ -61,7 +59,7 @@ class BluetoothService {
 
     await writeCharacteristic!.write(
       utf8.encode(data),
-      withoutResponse: true,
+      withoutResponse: false,
     );
   }
 
