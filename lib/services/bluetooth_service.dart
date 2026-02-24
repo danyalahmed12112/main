@@ -1,23 +1,25 @@
-import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'dart:convert';
 
+import 'package:flutter_blue_plus/flutter_blue_plus.dart' as fbp;
+
 class BluetoothService {
-  BluetoothDevice? connectedDevice;
-  BluetoothCharacteristic? writeCharacteristic;
+  fbp.BluetoothDevice? connectedDevice;
+  fbp.BluetoothCharacteristic? writeCharacteristic;
 
   get characteristics => null;
 
-  Future<List<ScanResult>> scanDevices() async {
-    await FlutterBluePlus.startScan(timeout: const Duration(seconds: 5));
-    return FlutterBluePlus.scanResults.first;
+  Future<List<fbp.ScanResult>> scanDevices() async {
+    // Start scan and wait until it finishes, then return accumulated results
+    await fbp.FlutterBluePlus.startScan(timeout: const Duration(seconds: 10));
+    await fbp.FlutterBluePlus.isScanning.where((scanning) => scanning == false).first;
+    return fbp.FlutterBluePlus.lastScanResults;
   }
 
-  Future<void> connectToDevice(BluetoothDevice device) async {
+  Future<void> connectToDevice(fbp.BluetoothDevice device) async {
     await device.connect();
     connectedDevice = device;
 
-    List<BluetoothService> services = [];
-    services = (await device.discoverServices()).cast<BluetoothService>();
+    List<fbp.BluetoothService> services = await device.discoverServices();
 
     for (var service in services) {
       for (var characteristic in service.characteristics) {
@@ -37,5 +39,7 @@ class BluetoothService {
 
   Future<void> disconnect() async {
     await connectedDevice?.disconnect();
+    connectedDevice = null;
+    writeCharacteristic = null;
   }
 }

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_blue_plus/flutter_blue_plus.dart' hide BluetoothService;
+import 'package:flutter_blue_plus/flutter_blue_plus.dart' as fbp hide BluetoothService;
+import 'package:permission_handler/permission_handler.dart';
+
 import '../services/bluetooth_service.dart';
 import 'wifi_screen.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 class BluetoothScreen extends StatefulWidget {
   const BluetoothScreen({super.key});
@@ -13,14 +14,16 @@ class BluetoothScreen extends StatefulWidget {
 
 class _BluetoothScreenState extends State<BluetoothScreen> {
   final BluetoothService btService = BluetoothService();
-  List<ScanResult> devices = [];
+  List<fbp.ScanResult> devices = [];
   bool scanning = false;
 
   Future<void> _requestPermissions() async {
     await [
+      Permission.bluetooth,
       Permission.bluetoothScan,
       Permission.bluetoothConnect,
-      Permission.location
+      Permission.location,
+      Permission.locationWhenInUse,
     ].request();
   }
 
@@ -40,26 +43,40 @@ class _BluetoothScreenState extends State<BluetoothScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Select ESP32 Device")),
+      appBar: AppBar(
+        title: const Text("Select ESP32 Device"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: scanning ? null : _scan,
+            tooltip: 'Scan again',
+          ),
+        ],
+      ),
       body: scanning
           ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              children: devices
-                  .where((d) => d.device.name == "ESP32_Config_Mode")
-                  .map((d) => ListTile(
-                        title: Text(d.device.name),
-                        subtitle: Text(d.device.id.toString()),
-                        onTap: () async {
-                          await btService.connectToDevice(d.device);
-                          Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) =>
-                                      WifiScreen(btService: btService)));
-                        },
-                      ))
-                  .toList(),
-            ),
+          : devices.isEmpty
+              ? const Center(child: Text("No devices found. Tap scan to retry."))
+              : ListView(
+                  children: devices.map((d) {
+                    final name = d.device.platformName.isNotEmpty ? d.device.platformName : d.device.remoteId.toString();
+                    final isEsp32 = d.device.platformName.toLowerCase().contains('esp32');
+                    return ListTile(
+                      leading: Icon(
+                        Icons.bluetooth,
+                        color: isEsp32 ? Colors.blue : Colors.grey,
+                      ),
+                      title: Text(name),
+                      subtitle: Text('${d.device.remoteId}  •  RSSI: ${d.rssi} dBm'),
+                      onTap: () async {
+                        await btService.connectToDevice(d.device);
+                        if (context.mounted) {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => WifiScreen(btService: btService)));
+                        }
+                      },
+                    );
+                  }).toList(),
+                ),
     );
   }
 }
