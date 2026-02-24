@@ -17,7 +17,7 @@ class ESP32SmartControl extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,
-        colorSchemeSeed: Colors.teal,
+        colorSchemeSeed: const Color.fromARGB(255, 0, 15, 150),
       ),
       home: const SplashScreen(),
     );

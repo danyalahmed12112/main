@@ -1,42 +1,71 @@
 import 'dart:convert';
-
-import 'package:flutter_blue_plus/flutter_blue_plus.dart' as fbp;
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
 class BluetoothService {
-  fbp.BluetoothDevice? connectedDevice;
-  fbp.BluetoothCharacteristic? writeCharacteristic;
+  BluetoothDevice? connectedDevice;
+  BluetoothCharacteristic? writeCharacteristic;
+
+  // 🔥 MUST MATCH ESP32 UUID
+  final Guid serviceUuid = Guid("12345678-1234-1234-1234-1234567890ab");
+
+  final Guid characteristicUuid = Guid("abcd1234-5678-1234-5678-1234567890ab");
+
+  get uuid => null;
 
   get characteristics => null;
 
-  Future<List<fbp.ScanResult>> scanDevices() async {
-    // Start scan and wait until it finishes, then return accumulated results
-    await fbp.FlutterBluePlus.startScan(timeout: const Duration(seconds: 10));
-    await fbp.FlutterBluePlus.isScanning.where((scanning) => scanning == false).first;
-    return fbp.FlutterBluePlus.lastScanResults;
+  /// 🔍 Scan Devices
+  Future<List<ScanResult>> scanDevices() async {
+    await FlutterBluePlus.startScan(
+      timeout: const Duration(seconds: 5),
+    );
+
+    await FlutterBluePlus.isScanning
+        .where((scanning) => scanning == false)
+        .first;
+
+    return FlutterBluePlus.lastScanResults;
   }
 
-  Future<void> connectToDevice(fbp.BluetoothDevice device) async {
-    await device.connect();
+  /// 🔗 Connect
+  Future<void> connectToDevice(BluetoothDevice device) async {
     connectedDevice = device;
 
-    List<fbp.BluetoothService> services = await device.discoverServices();
+    await device.connect(autoConnect: false);
+
+    List<BluetoothService> services =
+        (await device.discoverServices()).cast<BluetoothService>();
 
     for (var service in services) {
-      for (var characteristic in service.characteristics) {
-        if (characteristic.properties.write) {
-          writeCharacteristic = characteristic;
+      if (service.uuid == serviceUuid) {
+        for (var characteristic in service.characteristics) {
+          if (characteristic.uuid == characteristicUuid) {
+            writeCharacteristic = characteristic;
+          }
         }
       }
     }
-  }
 
-  Future<void> sendWifiCredentials(String ssid, String password) async {
-    if (writeCharacteristic != null) {
-      String data = "$ssid,$password\n";
-      await writeCharacteristic!.write(utf8.encode(data));
+    if (writeCharacteristic == null) {
+      throw Exception("Write characteristic not found!");
     }
   }
 
+  /// 📶 Send WiFi Credentials
+  Future<void> sendWifiCredentials(String ssid, String password) async {
+    if (writeCharacteristic == null) {
+      throw Exception("Device not connected");
+    }
+
+    String data = "WIFI:$ssid,$password\n";
+
+    await writeCharacteristic!.write(
+      utf8.encode(data),
+      withoutResponse: true,
+    );
+  }
+
+  /// ❌ Disconnect
   Future<void> disconnect() async {
     await connectedDevice?.disconnect();
     connectedDevice = null;
