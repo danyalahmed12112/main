@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import '../services/bluetooth_service.dart';
 import '../services/wifi_service.dart';
 
 class DashboardScreen extends StatefulWidget {
-  final String espIp;
-  const DashboardScreen({super.key, required this.espIp});
+  final BluetoothService btService;
+
+  const DashboardScreen(
+      {super.key, required this.btService, required String espIp});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -11,65 +14,122 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final WifiService wifiService = WifiService();
+
   bool ledOn = false;
-  bool connected = true;
+  bool wifiMode = false;
 
-  Future<void> _control(String command) async {
+  String espIp = "192.168.1.100";
+
+  final ssid = TextEditingController();
+  final pass = TextEditingController();
+
+  Future<void> control(String cmd) async {
     try {
-      final response = await wifiService.sendCommand(widget.espIp, command);
+      if (wifiMode) {
+        await wifiService.sendCommand(espIp, cmd);
+      } else {
+        await widget.btService.sendLedCommand(cmd);
+      }
 
-      setState(() {
-        ledOn = command == "on";
-        connected = true;
-      });
+      setState(() => ledOn = cmd == "on");
+    } catch (_) {
+      wifiMode = false;
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(response)));
-    } catch (e) {
-      setState(() => connected = false);
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("WiFi Failed. Switch to Bluetooth.")));
+        const SnackBar(
+          content: Text("WiFi Lost → Switched to Bluetooth"),
+        ),
+      );
     }
+  }
+
+  void wifiDialog() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("WiFi Setup"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: ssid,
+              decoration: const InputDecoration(labelText: "SSID"),
+            ),
+            TextField(
+              controller: pass,
+              decoration: const InputDecoration(labelText: "Password"),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () async {
+              await widget.btService.sendWifiCredentials(ssid.text, pass.text);
+
+              setState(() => wifiMode = true);
+
+              Navigator.pop(context);
+
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text("Now controlling via WiFi"),
+              ));
+            },
+            child: const Text("Connect"),
+          )
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("ESP32 Dashboard")),
+      appBar: AppBar(
+        title: const Text("ESP32 Dashboard"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.wifi),
+            onPressed: wifiDialog,
+          )
+        ],
+      ),
       body: Container(
         decoration: const BoxDecoration(
-            gradient: LinearGradient(
-                colors: [Colors.black, Colors.teal],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight)),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 500),
-              width: 150,
-              height: 150,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: ledOn ? Colors.green : Colors.red,
-                boxShadow: [
-                  BoxShadow(
-                    color: (ledOn ? Colors.green : Colors.red).withOpacity(0.8),
-                    blurRadius: 40,
-                    spreadRadius: 10,
-                  )
-                ],
+          gradient: LinearGradient(
+            colors: [Colors.black, Colors.teal],
+          ),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Chip(
+                label: Text(wifiMode ? "WiFi Mode" : "Bluetooth Mode"),
               ),
-            ),
-            const SizedBox(height: 40),
-            Text("IP: ${widget.espIp}"),
-            Text(connected ? "Connected" : "Not Connected"),
-            const SizedBox(height: 20),
-            ElevatedButton(
-                onPressed: () => _control("on"), child: const Text("LED ON")),
-            ElevatedButton(
-                onPressed: () => _control("off"), child: const Text("LED OFF")),
-          ],
+              const SizedBox(height: 40),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 400),
+                width: 160,
+                height: 160,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: ledOn ? Colors.green : Colors.red,
+                  boxShadow: [
+                    BoxShadow(
+                      color: ledOn ? Colors.green : Colors.red,
+                      blurRadius: 40,
+                    )
+                  ],
+                ),
+              ),
+              const SizedBox(height: 40),
+              ElevatedButton(
+                  onPressed: () => control("on"), child: const Text("LED ON")),
+              ElevatedButton(
+                  onPressed: () => control("off"),
+                  child: const Text("LED OFF")),
+            ],
+          ),
         ),
       ),
     );

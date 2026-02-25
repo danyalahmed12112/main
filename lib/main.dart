@@ -11,13 +11,13 @@ class ESP32SmartControl extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'ESP32 Smart Control',
       debugShowCheckedModeBanner: false,
+      title: "ESP32 Smart Control",
       themeMode: ThemeMode.dark,
       theme: ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,
-        colorSchemeSeed: const Color.fromARGB(255, 0, 15, 150),
+        colorSchemeSeed: Colors.teal,
       ),
       home: const SplashScreen(),
     );

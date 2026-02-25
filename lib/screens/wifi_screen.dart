@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import '../services/bluetooth_service.dart';
 import 'dashboard_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class WifiScreen extends StatefulWidget {
   final BluetoothService btService;
-
   const WifiScreen({super.key, required this.btService});
 
   @override
@@ -18,23 +16,24 @@ class _WifiScreenState extends State<WifiScreen> {
   final passController = TextEditingController();
   bool loading = false;
 
-  BluetoothService get btService => widget.btService;
-
   Future<void> _sendCredentials() async {
     setState(() => loading = true);
-    await btService
+    await widget.btService
         .sendWifiCredentials(ssidController.text, passController.text);
-    await btService.disconnect();
+    await widget.btService.disconnect();
 
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString("esp_ip", "192.168.1.100"); // user can modify later
+    await prefs.setString("esp_ip", "192.168.12.122"); // user can modify later
 
     setState(() => loading = false);
 
     Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
-            builder: (_) => const DashboardScreen(espIp: "192.168.1.100")),
+            builder: (_) => DashboardScreen(
+                  espIp: "192.168.12.122",
+                  btService: widget.btService,
+                )),
         (route) => false);
   }
 
